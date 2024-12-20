@@ -4,13 +4,12 @@ A modern, markdown-based note-taking application built with Next.js, TypeScript,
 
 ## Features
 
-- 📝 Markdown editor with live preview
-- 🏷️ Tag-based organization
-- 💾 MongoDB persistence
-- 🎨 Modern UI with Tailwind CSS
-- 🌙 Light/Dark mode support
+- Markdown editor with live preview
+- Tag-based organization
+- MongoDB persistence
+- Modern UI with Tailwind CSS
+- Light/Dark mode support
 - ⚡ Real-time preview
-- 📱 Responsive design
 
 ## Tech Stack
 
@@ -32,7 +31,7 @@ A modern, markdown-based note-taking application built with Next.js, TypeScript,
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/note-hive.git
+git clone https://github.com/Indefy/note-hive.git
 cd note-hive
 ```
 
