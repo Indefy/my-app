@@ -1,156 +1,81 @@
-'use client';
+import dynamic from 'next/dynamic'
+import '@uiw/react-md-editor/markdown-editor.css'
+import '@uiw/react-markdown-preview/markdown.css'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { useState } from 'react'
 
-import React, { useState } from 'react';
-import MDEditor from '@uiw/react-md-editor';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/components/ui/use-toast';
-import { Card } from '@/components/ui/card';
-import { logger } from '@/lib/logger';
+const MDEditor = dynamic(
+  () => import('@uiw/react-md-editor').then((mod) => mod.default),
+  { ssr: false }
+)
 
 interface NoteEditorProps {
-  onNoteCreated?: () => void;
+  value?: string
+  onChange?: (value: string | undefined) => void
+  placeholder?: string
+  onSubmit?: (content: { title: string, content: string }) => Promise<void>
 }
 
-const NoteEditor: React.FC<NoteEditorProps> = ({ onNoteCreated }) => {
+export default function NoteEditor({ value, onChange, placeholder, onSubmit }: NoteEditorProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
-  const validateInput = () => {
-    if (!title.trim()) {
-      logger.warn('Note creation attempted without title');
-      toast({
-        title: "Validation Error",
-        description: "Title is required",
-        variant: "destructive",
-      });
-      return false;
-    }
-    if (!content.trim()) {
-      logger.warn('Note creation attempted without content');
-      toast({
-        title: "Validation Error",
-        description: "Content is required",
-        variant: "destructive",
-      });
-      return false;
-    }
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!validateInput()) return;
-
-    setIsLoading(true);
-    logger.info('Attempting to create note:', { title, contentLength: content.length });
-
+  const handleSubmit = async () => {
+    if (!value?.trim() || !onSubmit || isSubmitting || !title.trim()) return;
+    
     try {
-      const response = await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          content: content.trim(),
-          tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to create note: ${errorText}`);
-      }
-
-      const data = await response.json();
-      logger.info('Note created successfully:', data);
-
-      toast({
-        title: "Success",
-        description: "Note created successfully",
-      });
-
-      setTitle('');
-      setContent('');
-      setTags('');
-      
-      onNoteCreated?.();
+      setIsSubmitting(true);
+      await onSubmit({ title, content: value });
+      setTitle(''); // Clear title
+      onChange?.(''); // Clear content
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      logger.error('Error creating note:', errorMessage);
-      
-      toast({
-        title: "Error",
-        description: "Failed to create note. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error submitting note:', error);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full p-4">
-      <div className="space-y-4">
-        <div className="flex items-center space-x-4">
-          <Input
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={isLoading}
-            spellCheck={false}
-            className="text-xl font-semibold"
-          />
-          <Input
-            placeholder="Tags (comma separated)"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            disabled={isLoading}
-            spellCheck={false}
-            className="max-w-[200px]"
-          />
-        </div>
-        
-        <div data-color-mode="light" className="min-h-[500px]">
-          <MDEditor
-            value={content}
-            onChange={(val) => setContent(val || '')}
-            preview="live"
-            height={500}
-            hideToolbar={false}
-            enableScroll={true}
-            textareaProps={{
-              placeholder: 'Write your note in Markdown...',
-              spellCheck: false,
-            }}
-          />
-        </div>
-
-        <div className="flex justify-end space-x-2">
-          <Button 
-            variant="outline"
-            onClick={() => {
-              setTitle('');
-              setContent('');
-              setTags('');
-            }}
-            disabled={isLoading}
-          >
-            Clear
-          </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating...' : 'Create Note'}
-          </Button>
-        </div>
+    <div className="w-full rounded-lg overflow-hidden border border-border bg-card transition-all duration-200 hover:shadow-lg">
+      <div className="p-4 border-b border-border">
+        <Input
+          type="text"
+          placeholder="Note title..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full font-medium"
+        />
       </div>
-    </Card>
-  );
-};
-
-export default NoteEditor;
+      <div data-color-mode="light" className="prose max-w-none">
+        <MDEditor
+          value={value}
+          onChange={onChange}
+          preview="edit"
+          hideToolbar={false}
+          height={300}
+          visibleDragbar={false}
+          className="!bg-transparent"
+          previewOptions={{
+            className: "!bg-transparent !text-foreground prose-amber",
+            transformLinkUri: null
+          }}
+          textareaProps={{
+            placeholder,
+            className: "!bg-transparent !text-foreground",
+            "aria-label": "Markdown editor"
+          }}
+        />
+      </div>
+      <div className="p-4 border-t border-border">
+        <Button 
+          onClick={handleSubmit}
+          disabled={!value?.trim() || !title.trim() || isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? 'Creating Note...' : 'Create Note'}
+        </Button>
+      </div>
+    </div>
+  )
+}

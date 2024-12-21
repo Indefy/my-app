@@ -46,15 +46,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     logger.info('Creating new note:', body);
 
+    if (!body.content?.trim()) {
+      return NextResponse.json(
+        { error: 'Note content is required' },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
     
     const note = await Note.create({
-      title: body.title,
       content: body.content,
-      tags: body.tags,
+      tags: body.tags || [],
     });
-
-    await note.save();
     
     logger.info('Note created successfully:', note.toObject());
     return NextResponse.json(note);

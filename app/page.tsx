@@ -1,71 +1,61 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import NoteEditor from "@/components/NoteEditor";
-import NoteFeed from "@/components/NoteFeed";
-import { Providers } from './providers';
-import type { Note } from '@/lib/types';
 import { useToast } from '@/components/ui/use-toast';
-import { logger } from '@/lib/logger';
+import { Note } from '@/lib/types';
 
 export default function Home() {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [editorValue, setEditorValue] = useState('');
   const { toast } = useToast();
 
-  const fetchNotes = useCallback(async () => {
+  const handleEditorChange = (value: string | undefined) => {
+    setEditorValue(value || '');
+  };
+
+  const handleCreateNote = async (data: { title: string, content: string }) => {
     try {
-      logger.debug('Fetching notes...');
-      const response = await fetch('/api/notes');
-      
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch notes: ${response.statusText}`);
+        throw new Error('Failed to create note');
       }
-      
-      const data = await response.json();
-      logger.debug('Notes fetched:', { count: data.length });
-      setNotes(data);
+
+      toast({
+        title: "Success!",
+        description: "Your note has been created.",
+      });
+
+      setEditorValue(''); // Clear editor after successful creation
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      logger.error('Error fetching notes:', { error: errorMessage });
+      console.error('Error creating note:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch notes. Please try again later.",
+        description: "Failed to create note. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
+  };
 
   return (
-    <Providers>
-      <main className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <h1 className="text-4xl font-bold text-center">Welcome to NoteHive</h1>
-            <div className="space-y-8">
-              <div className="bg-card rounded-lg shadow-lg">
-                <NoteEditor onNoteCreated={fetchNotes} />
-              </div>
-              {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-pulse space-y-4">
-                    <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
-                    <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
-                  </div>
-                </div>
-              ) : (
-                <NoteFeed notes={notes} />
-              )}
-            </div>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-4xl font-bold">Create New Note</h1>
+        <div className="bg-card rounded-lg shadow-lg">
+          <NoteEditor 
+            value={editorValue}
+            onChange={handleEditorChange}
+            onSubmit={handleCreateNote}
+            placeholder="Write your notes here..."
+          />
         </div>
-      </main>
-    </Providers>
+      </div>
+    </div>
   );
 }
